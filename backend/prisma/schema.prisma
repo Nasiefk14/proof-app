@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                   String   @id @default(uuid())
+  githubId             String   @unique
+  handle               String   @unique
+  displayName          String
+  avatarUrl            String?
+  accessTokenEncrypted String
+  createdAt            DateTime @default(now())
+
+  repos         Repo[]
+  dailyStats    DailyStat[]
+  recentCommits RecentCommit[]
+
+  @@map("users")
+}
+
+model Repo {
+  id           String    @id @default(uuid())
+  userId       String
+  githubRepoId String
+  name         String
+  isPublic     Boolean   @default(true)
+  optedIn      Boolean   @default(false)
+  lastSyncedAt DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyStats    DailyStat[]
+  recentCommits RecentCommit[]
+
+  @@unique([userId, githubRepoId])
+  @@map("repos")
+}
+
+model DailyStat {
+  id          String   @id @default(uuid())
+  userId      String
+  repoId      String
+  date        DateTime @db.Date
+  commitCount Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, repoId, date])
+  @@map("daily_stats")
+}
+
+model RecentCommit {
+  id               String   @id @default(uuid())
+  userId           String
+  repoId           String
+  sha              String
+  messageFirstLine String
+  committedAt      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([repoId, sha])
+  @@index([userId, committedAt])
+  @@map("recent_commits")
+}
